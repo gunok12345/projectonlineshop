@@ -1,6 +1,7 @@
 <?php
+session_start();
 require_once 'config.php';
-
+$errors = []; // กำหนดตัวแปรสำหรับเก็บข้อความผิดพลาด
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // รับค่าจากฟอร์ม
     $username = trim($_POST['username']);
@@ -9,18 +10,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = trim($_POST['password']);
     $confirm_password = trim($_POST['confirm_password']);
 
-    // นำข้อมลไปบันทึกในฐานข้อมูล
+    // ตรวจสอบความถูกต้อง
+    if (empty($username) || empty($name) || empty($email) || empty($password) || empty($confirm_password)) {
+        $errors[] = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
+    
+    }elseif(!filter_var($email, FILTER_VALIDATE_EMAIL)) {// ตรวจสอบอีเมลถุกต้องหรือไม่
+        $errors[] = "กรุณากรอกอีเมลให้ถูกต้อง";
+    } elseif ($password !== $confirm_password) { //ตรวจสอบรหัสผ่านตรงกันหรือไม่
+        $errors[] = "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน";
+    }else{
+        // ตรวจสอบชื่อผู้ใช้หรืออีเมลที่ใช้ไปแล้วหรือไม่
+     $sql = "SELECT * FROM users WHERE username = ? OR email = ?";
+     $stmt = $conn->prepare($sql);
+     $stmt->execute([$username, $email]);
+
+        if ($stmt->rowCount() > 0) {
+            $errors[] = "ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว";
+        }
+
+    }
+    if (empty($errors)) { // ถ้าไม่มีข้อผิดพลาด
+        // นำข้อมลไปบันทึกในฐานข้อมูล
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-    $sql = "INSERT INTO users(username, full_name, email, password, role) VALUES (?, ?, ?, ?, 'admin')";
+    $sql = "INSERT INTO users(username, full_name, email, password, role) VALUES (?, ?, ?, ?, 'member')";
     $stmt = $conn->prepare($sql);
     $stmt->execute([$username, $name, $email, $hashedPassword]);
-
-
-    if ($password !== $confirm_password) {
-        echo "รหัสผ่านไม่ตรงกัน";
-        exit;
-    }
-
+    //ถ้าบันทึกสำเร็จ ให้เปลี่ยนเส้นทางไปหน้า login
+    header("Location: login.php?register=success");
+    exit(); //หยุดการทำงานของสคริปต์หลังจากเปลี่ยนเส้นทาง
+    
+}
+    
     try {
         $stmt = $conn->prepare("INSERT INTO users (username, full_name, email, password) VALUES (?, ?, ?, ?)");
         $stmt->execute([$username, $name, $email, $hashedPassword]);
@@ -38,8 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
-</head>
-<body>
     <style>
         body {
             min-height: 100vh;
@@ -121,7 +139,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-color: #ffb300;
             box-shadow: 0 0 0 0.2rem rgba(255,179,0,.15);
         }
-    </style>
+    </style>    
+</head>
+<body>
+    
     <div class="container mt-5 d-flex flex-column justify-content-center align-items-center" style="min-height: 80vh; position: relative; z-index: 1;">
         <div class="shop-logo">
             <img src="https://cdn-icons-png.flaticon.com/512/263/263142.png" alt="Shop Logo">
@@ -130,27 +151,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="card shadow-lg p-4 fade-in" style="width: 100%; max-width: 420px;">
             <div class="text-center mb-4">
                 <h2 class="fw-bold" style="color:#ff7043"><i class="bi bi-person-plus"></i> สมัครสมาชิก</h2>
+                <!--เขียน if, foreach แบบย่อ (alternative syntax)
+        ใช ้: แทน { เพื่อเปิดเงื่อนไข
+        ใช ้< ?php endforeach; ?> แทน } เพื่อปิดลูป
+        ใช ้< ?php endif; ?> แทน } เพื่อปิดเงื่อนไข if -->
+        <?php if (!empty($errors)): // ถ ้ำมีข ้อผิดพลำด ให้แสดงข ้อควำม ?>
+        <div class="alert alert-danger">
+<ul>
+<?php foreach ($errors as $e): ?>
+<li><?= htmlspecialchars($e) ?></li>
+<!--ใช ้ htmlspecialchars เพื่อป้องกัน XSS -->
+<!-- < ? = คือ short echo tag ?> -->
+<!-- ถ ้ำเขียนเต็ม จะได ้แบบด ้ำนล่ำง -->
+<?php // echo "<li>" . htmlspecialchars($e) . "</li>"; ?>
+<?php endforeach; ?>
+</ul>
+</div>
+<?php endif; ?>
             </div>
             <form action="register.php" method="POST">
                 <div class="mb-3">
                     <label for="username" class="form-label">ชื่อผู้ใช้</label>
-                    <input type="text" class="form-control" id="username" name="username" required placeholder="ชื่อผู้ใช้"> 
+                    <input type="text" class="form-control" id="username" name="username" placeholder="ชื่อผู้ใช้" value="<?= isset($_POST['username']) ? htmlspecialchars($_POST['username']) : '' ?>" required>
+
+ 
                 </div>
                 <div class="mb-3">
                     <label for="name" class="form-label">ชื่อ-สกุล</label>
-                    <input type="text" class="form-control" id="name" name="name" required placeholder="ชื่อ-สกุล">
+                    <input type="text" class="form-control" id="name" name="name" placeholder="ชื่อ-สกุล" value="<?= isset($_POST['name']) ? htmlspecialchars($_POST['name']) : '' ?>" required>
                 </div>
                 <div class="mb-3">
                     <label for="email" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="email" name="email" required placeholder="อีเมล">
+                    <input type="email" class="form-control" id="email" name="email" placeholder="อีเมล" value="<?= isset($_POST['email']) ? htmlspecialchars($_POST['email']) : '' ?>" required>
                 </div>
                 <div class="mb-3">
                     <label for="password" class="form-label">รหัสผ่าน</label>
-                    <input type="password" class="form-control" id="password" name="password" required placeholder="รหัสผ่าน">
+                    <input type="password" class="form-control" id="password" name="password" placeholder="รหัสผ่าน" required>
                 </div>
                 <div class="mb-3">
                     <label for="confirm_password" class="form-label">ยืนยันรหัสผ่าน</label>
-                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required placeholder="ยืนยันรหัสผ่าน">
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="ยืนยันรหัสผ่าน">
                 </div>
                 <button type="submit" class="btn btn-danger w-100 mb-2"><i class="bi bi-person-plus-fill"></i> สมัครสมาชิก</button>
                 <a href="login.php" class="btn btn-outline-secondary w-100">เข้าสู่ระบบ</a>
