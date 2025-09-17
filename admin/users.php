@@ -1,9 +1,15 @@
 <?php
-session_start();
-require '../config.php';          // เชื่อมต่อฐานข้อมูล (PDO: $conn)
-require_once 'auth_admin.php';    // ตรวจสอบสิทธิ์แอดมิน
+// users.php
 
-// เปิดโหมด error ชัดๆ (ถ้ายังไม่ได้ตั้งใน config)
+require '../config.php';            // ต้องมี $conn = new PDO(...);
+require_once 'auth_admin.php';      // ตรวจสอบสิทธิ์แอดมิน (ให้มี session_start() ด้วย)
+
+// เผื่อบางโปรเจกต์ยังไม่ session_start() ใน auth_admin.php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// ปรับโหมด error ของ PDO ให้ชัด
 if ($conn instanceof PDO) {
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 }
@@ -14,11 +20,13 @@ if (empty($_SESSION['csrf'])) {
 }
 $csrf = $_SESSION['csrf'];
 
-// ---- ลบสมาชิก (ใช้ POST + CSRF) ----
+// ---- ลบสมาชิก (POST + CSRF) ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'], $_POST['csrf'])) {
+    // ตรวจสอบโทเค็น
     if (hash_equals($_SESSION['csrf'], $_POST['csrf'])) {
         $user_id = (int) $_POST['delete_id'];
-        // ป้องกันลบตัวเอง
+
+        // กันลบตัวเอง
         if ($user_id !== (int)($_SESSION['user_id'] ?? 0)) {
             $stmt = $conn->prepare("DELETE FROM users WHERE user_id = :uid AND role = 'member'");
             $stmt->execute([':uid' => $user_id]);
@@ -62,14 +70,17 @@ $stmt = $conn->prepare($sql);
 $stmt->execute($params);
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ดึงชื่อสมาชิกทั้งหมด (เพื่อแสดงด้านบน)
+// ดึงรายชื่อสมาชิกทั้งหมด (เพื่อโชว์บนสุด)
 $stmt = $conn->prepare("SELECT username FROM users WHERE role='member' ORDER BY username ASC");
 $stmt->execute();
 $allUsernames = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 // ฟังก์ชันสร้างลิงก์เพจ
 function build_page_link($q, $pageNum) {
-    $query = array_filter(['q' => $q ?: null, 'page' => $pageNum > 1 ? $pageNum : null]);
+    $query = array_filter([
+        'q'    => $q !== '' ? $q : null,
+        'page' => $pageNum > 1 ? $pageNum : null
+    ]);
     return 'users.php' . (empty($query) ? '' : '?' . http_build_query($query));
 }
 ?>
@@ -78,6 +89,7 @@ function build_page_link($q, $pageNum) {
 <head>
 <meta charset="UTF-8">
 <title>จัดการสมาชิก</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 <style>
@@ -153,14 +165,11 @@ function build_page_link($q, $pageNum) {
               <a href="edit_user.php?id=<?= (int)$u['user_id'] ?>" class="btn btn-sm btn-warning">
                 <i class="bi bi-pencil-square"></i> แก้ไข
               </a>
-              <form method="post" action="users.php" class="d-inline"
-                    onsubmit="return confirm('คุณต้องการลบสมาชิกนี้หรือไม่?');">
-                <input type="hidden" name="delete_id" value="<?= (int)$u['user_id'] ?>">
-                <input type="hidden" name="csrf" value="<?= $csrf ?>">
-                <button type="submit" class="btn btn-sm btn-danger">
-                  <i class="bi bi-trash3"></i> ลบ
-                </button>
-              </form>
+              <button type="button"
+                      class="delete-button btn btn-danger btn-sm"
+                      data-user-id="<?= (int)$u['user_id'] ?>">
+                <i class="bi bi-trash3"></i> ลบ
+              </button>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -190,5 +199,51 @@ function build_page_link($q, $pageNum) {
     </nav>
   <?php endif; ?>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// โทเค็นสำหรับส่งกลับไปเช็คฝั่ง PHP
+const CSRF_TOKEN = '<?= $csrf ?>';
+
+function showDeleteConfirmation(userId) {
+  Swal.fire({
+    title: 'คุณแน่ใจหรือไม่?',
+    text: 'คุณจะไม่สามารถเรียกคืนข้อมูลกลับได้!',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'ลบ',
+    cancelButtonText: 'ยกเลิก',
+  }).then((result) => {
+    if (result.isConfirmed) {
+      // สร้างฟอร์ม POST กลับมาที่หน้านี้
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'users.php';
+
+      const idInput = document.createElement('input');
+      idInput.type = 'hidden';
+      idInput.name = 'delete_id';
+      idInput.value = String(userId);
+      form.appendChild(idInput);
+
+      const csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = 'csrf';
+      csrfInput.value = CSRF_TOKEN;
+      form.appendChild(csrfInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+  });
+}
+
+document.querySelectorAll('.delete-button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const userId = btn.getAttribute('data-user-id');
+    showDeleteConfirmation(userId);
+  });
+});
+</script>
 </body>
 </html>

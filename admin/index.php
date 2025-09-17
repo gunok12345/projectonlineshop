@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once '../config.php';
 // ตรวจสอบสิทธิ์ admin
 require_once 'auth_admin.php';
