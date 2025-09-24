@@ -18,7 +18,6 @@
     <title>หน้าหลัก</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
   body { background:#f8f9fa; }
   .card-product { transition:.2s; }
@@ -47,7 +46,7 @@
                     <?php endif; ?>
             </div>
     </div>
-    <!-- <div class="row">
+    <div class="row">
         <?php foreach ($products as $product): ?>
             <div class="col-md-4 mb-4">
                 <div class="card h-100">
@@ -71,84 +70,7 @@
                 </div>
             </div>
         <?php endforeach; ?>
-    </div> -->
-    <div class="row g-4"> <!-- EDIT C -->
-        <?php foreach ($products as $p): ?>
-        <!-- TODO==== เตรียมรูป / ตกแต่ง badge / ดำวรีวิว ==== -->
-        <?php
-        // เตรียมรูป
-        $img = !empty($p['image'])
-        ? 'product_images/' . rawurlencode($p['image'])
-        : 'product_images/no-image.jpg';
-        // ตกแต่ง badge: NEW ภำยใน 7 วัน / HOT ถ ้ำสต็อกน้อยกว่ำ 5
-        $isNew = isset($p['created_at']) && (time() - strtotime($p['created_at']) <= 7*24*3600);
-        $isHot = (int)$p['stock'] > 0 && (int)$p['stock'] < 5;
-        // ดำวรีวิว (ถ ้ำไม่มีใน DB จะโชว์ 4.5 จ ำลอง; ถ ้ำมี $p['rating'] ให้แทน)
-        $rating = isset($p['rating']) ? (float)$p['rating'] : 4.5;
-        $full = floor($rating); // จ ำนวนดำวเต็ม (เต็ม 1 ดวง) , floor ปัดลง
-        $half = ($rating - $full) >= 0.5 ? 1 : 0; // มีดำวครึ่งดวงหรือไม่
-        ?>
-        <div class="col-12 col-sm-6 col-lg-3"> <!-- EDIT C -->
-        <div class="card product-card h-100 position-relative"> <!-- EDIT C -->
-        <!-- TODO====check $isNew / $isHot ==== -->
-        <?php if ($isNew): ?>
-        <span class="badge bg-success badge-top-left">NEW</span>
-        <?php elseif ($isHot): ?>
-        <span class="badge bg-danger badge-top-left">HOT</span>
-        <?php endif; ?>
-        <!-- TODO====show Product images ==== -->
-        <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>" class="p-3 d-block">
-        <img src="<?= htmlspecialchars($img) ?>"
-        alt="<?= htmlspecialchars($p['product_name']) ?>"
-        class="img-fluid w-100 product-thumb">
-        </a>
-        <div class="px-3 pb-3 d-flex flex-column"> <!-- EDIT C -->
-        <!-- TODO====div for category, heart ==== -->
-        <div class="d-flex justify-content-between align-items-center mb-1">
-        <div class="product-meta">
-        <?= htmlspecialchars($p['category_name'] ?? 'Category') ?>
-        </div>
-        <button class="btn btn-link p-0 wishlist" title="Add to wishlist" type="button">
-        <i class="bi bi-heart"></i>
-        </button>
-        </div>
-        <!-- TODO====link, div for product name ==== -->
-        <a class="text-decoration-none" href="product_detail.php?id=<?= (int)$p['product_id'] ?>">
-        <div class="product-title">
-        <?= htmlspecialchars($p['product_name']) ?>
-        </div>
-        </a>
-        <!-- TODO====div for rating ==== -->
-        <!-- ดำวรีวิว -->
-        <div class="rating mb-2">
-        <?php for ($i=0; $i<$full; $i++): ?><i class="bi bi-star-fill"></i><?php endfor; ?>
-        <?php if ($half): ?><i class="bi bi-star-half"></i><?php endif; ?>
-        <?php for ($i=0; $i<5-$full-$half; $i++): ?><i class="bi bi-star"></i><?php endfor; ?>
-        </div>
-        <!-- TODO====div for price ==== -->
-        <div class="price mb-3">
-        <?= number_format((float)$p['price'], 2) ?> บาท
-        </div>
-        <!-- TODO====div for button check login ==== -->
-        <div class="mt-auto d-flex gap-2">
-        <?php if ($isLoggedIn): ?>
-        <form action="cart.php" method="post" class="d-inline-flex gap-2">
-        <input type="hidden" name="product_id" value="<?= (int)$p['product_id'] ?>">
-        <input type="hidden" name="quantity" value="1">
-        <button type="submit" class="btn btn-sm btn-success">เพิ่มในตะกร้า</button>
-        </form>
-        <?php else: ?>
-        <small class="text-muted">เข้าสู่ระบบเพื่อสั่งซื้อ</small>
-        <?php endif; ?>
-        <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>"
-        class="btn btn-sm btn-outline-primary ms-auto">ดูรายละเอียด</a>
-        </div>
-        </div>
-        </div>
-        </div>
-        <?php endforeach; ?>
-        </div>
-
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>

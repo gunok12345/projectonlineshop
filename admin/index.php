@@ -56,7 +56,7 @@ require_once 'auth_admin.php';
             </a>
         </div>
         <div class="col-md-3">
-            <a href="categories.php" class="text-decoration-none">
+            <a href="category.php" class="text-decoration-none">
                 <div class="card dashboard-card text-center p-4 border-dark">
                     <i class="bi bi-tags fs-1 text-dark"></i>
                     <h5 class="mt-3 text-dark">จัดการหมวดหมู่</h5>
